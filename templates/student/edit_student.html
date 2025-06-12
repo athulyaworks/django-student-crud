@@ -9,6 +9,9 @@
 <body>
   <div class="container my-5">
     <h2 class="mb-4">Edit Student</h2>
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
     <form method="post" class="w-50">
       {% csrf_token %}
       <div class="mb-3">
@@ -25,7 +28,27 @@
       </div>
       <div class="mb-3">
         <label for="course" class="form-label">Course</label>
-        <input type="text" class="form-control" id="course" name="course" value="{{ student.course }}" required />
+        <select name="course" class="form-select" required>
+          {% for course in courses %}
+            <option value="{{ course.id }}" {% if course.id == student.course.id %}selected{% endif %}>{{ course.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Clubs</label>
+        <div>
+          {% for club in clubs %}
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="club{{ club.id }}" name="clubs" value="{{ club.id }}" 
+                {% if club in student.clubs.all %}checked{% endif %} />
+              <label class="form-check-label" for="club{{ club.id }}">{{ club.name }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="bio" class="form-label">Bio</label>
+        <textarea class="form-control" id="bio" name="bio" rows="3">{{ student.bio }}</textarea>
       </div>
       <div class="mb-3">
         <label for="mark" class="form-label">Mark</label>

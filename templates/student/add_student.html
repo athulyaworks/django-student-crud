@@ -25,8 +25,29 @@
       </div>
       <div class="mb-3">
         <label for="course" class="form-label">Course</label>
-        <input type="text" class="form-control" id="course" name="course" required />
+        <select name="course" class="form-select" required>
+          {% for course in courses %}
+            <option value="{{ course.id }}">{{ course.title }}</option>
+          {% endfor %}
+        </select>
       </div>
+      <div class="mb-3">
+        <label class="form-label">Clubs</label>
+        <div>
+          {% for club in clubs %}
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="club{{ club.id }}" name="clubs" value="{{ club.id }}" />
+              <label class="form-check-label" for="club{{ club.id }}">{{ club.name }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="bio" class="form-label">Bio</label>
+        <textarea class="form-control" id="bio" name="bio" rows="3"></textarea>
+      </div>
+
       <div class="mb-3">
         <label for="mark" class="form-label">Mark</label>
         <input type="number" class="form-control" id="mark" name="mark" required />
