@@ -2,10 +2,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import Student, Course,Club, Profile, Syllabus
 import datetime
 from .forms import SyllabusForm
-from django.shortcuts import render, redirect, get_object_or_404
-from .forms import SyllabusForm
-
-
 
 # Create your views here.
 
@@ -160,9 +156,6 @@ def delete_student(request, id):
     return render(request, 'student/delete_student.html',{'student':student})
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from .forms import SyllabusForm
-from .models import Course
 
 def add_syllabus(request):
     if request.method == 'POST':
