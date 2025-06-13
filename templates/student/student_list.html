@@ -4,10 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Student List</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body {
       background: #f8f9fa;
@@ -30,56 +27,21 @@
   <div class="container my-5">
     <h2 class="mb-4 text-primary">Student List</h2>
 
-    <!-- Buttons and Filter Form -->
     <div class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div>
         <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
         <a href="{% url 'add_syllabus' %}" class="btn btn-info ms-2">Add Syllabus</a>
+        <a href="{% url 'course_union' %}">View Courses (CS or AI)</a>
       </div>
 
       <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-        <input
-          type="text"
-          name="search"
-          value="{{ request.GET.search }}"
-          class="form-control"
-          placeholder="Search by name"
-          style="min-width: 150px;"
-        />
-        <input
-          type="text"
-          name="course"
-          value="{{ request.GET.course }}"
-          class="form-control"
-          placeholder="Filter by course"
-          style="min-width: 150px;"
-        />
-        <input
-          type="number"
-          name="min_mark"
-          value="{{ request.GET.min_mark }}"
-          class="form-control"
-          placeholder="Min mark"
-          style="max-width: 100px;"
-        />
-        <input
-          type="number"
-          name="max_mark"
-          value="{{ request.GET.max_mark }}"
-          class="form-control"
-          placeholder="Max mark"
-          style="max-width: 100px;"
-        />
+        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Search by name" style="min-width: 150px;" />
+        <input type="text" name="course" value="{{ request.GET.course }}" class="form-control" placeholder="Filter by course" style="min-width: 150px;" />
+        <input type="number" name="min_mark" value="{{ request.GET.min_mark }}" class="form-control" placeholder="Min mark" style="max-width: 100px;" />
+        <input type="number" name="max_mark" value="{{ request.GET.max_mark }}" class="form-control" placeholder="Max mark" style="max-width: 100px;" />
 
         <div class="form-check mt-2">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            name="exclude_failed"
-            value="true"
-            id="excludeFailed"
-            {% if request.GET.exclude_failed == 'true' %}checked{% endif %}
-          />
+          <input class="form-check-input" type="checkbox" name="exclude_failed" value="true" id="excludeFailed" {% if request.GET.exclude_failed == 'true' %}checked{% endif %} />
           <label class="form-check-label" for="excludeFailed">Exclude failed</label>
         </div>
 
@@ -88,7 +50,6 @@
       </form>
     </div>
 
-    <!-- Student Table -->
     <table class="table table-striped table-bordered align-middle">
       <thead class="table-dark">
         <tr>
@@ -97,6 +58,7 @@
           <th>Course</th>
           <th>Clubs</th>
           <th>Mark</th>
+          <th>Status</th>
           <th>Bio</th>
           <th>Actions</th>
         </tr>
@@ -108,11 +70,7 @@
             <td>{{ student.age }}</td>
             <td>
               {{ student.course.title }}
-              <a
-                href="{% url 'view_syllabus' student.course.id %}"
-                class="btn btn-sm btn-secondary ms-2 btn-syllabus"
-                title="View Syllabus"
-              >Syllabus</a>
+              <a href="{% url 'view_syllabus' student.course.id %}" class="btn btn-sm btn-secondary ms-2 btn-syllabus" title="View Syllabus">Syllabus</a>
             </td>
             <td>
               {% with student.clubs.all as clubs %}
@@ -124,6 +82,13 @@
               {% endwith %}
             </td>
             <td>{{ student.mark }}</td>
+            <td>
+              {% if student.status == "Pass" %}
+                <span class="badge bg-success">{{ student.status }}</span>
+              {% else %}
+                <span class="badge bg-danger">{{ student.status }}</span>
+              {% endif %}
+            </td>
             <td>
               {% if student.profile %}
                 {{ student.profile.bio|default:"No bio" }}
@@ -138,13 +103,12 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="7" class="text-center text-muted">No students available.</td>
+            <td colspan="8" class="text-center text-muted">No students available.</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    <!-- ORM Summary -->
     <h4 class="mt-5 mb-3 text-secondary">Summary</h4>
     <ul class="list-group summary-list">
       <li class="list-group-item">First Student: <strong>{{ first_student.name }}</strong></li>
@@ -170,6 +134,50 @@
       </li>
       <li class="list-group-item">Distinct Courses: <strong>{{ distinct_courses|join:", " }}</strong></li>
       <li class="list-group-item">Empty Queryset? <strong>{{ empty_qs }}</strong></li>
+      <li class="list-group-item">Average Mark: <strong>{{ average_mark|floatformat:2 }}</strong></li>
+      <li class="list-group-item">Maximum Mark: <strong>{{ max_mark }}</strong></li>
+
+      <li class="list-group-item">
+        Students Per Course:
+        <ul>
+          {% for course in students_per_course %}
+            <li>{{ course.title }} - {{ course.student_count }} students</li>
+          {% endfor %}
+        </ul>
+      </li>
+
+      <li class="list-group-item">
+        Latest Student Per Course:
+        <ul>
+          {% for course in courses_with_latest %}
+            <li>{{ course.title }} - {{ course.latest_student_name }}</li>
+          {% endfor %}
+        </ul>
+      </li>
+
+      <!-- UNION DISPLAY -->
+      <li class="list-group-item">
+        Union of Courses with "CS" or "AI":
+        <ul>
+          {% for course in union_courses %}
+            <li>{{ course.title }}</li>
+          {% empty %}
+            <li>No courses found.</li>
+          {% endfor %}
+        </ul>
+      </li>
+
+      <!-- INTERSECTION DISPLAY -->
+      <li class="list-group-item">
+        High Scoring Students in "Data Science":
+        <ul>
+          {% for s in intersection_students %}
+            <li>{{ s.name }} - {{ s.mark }}</li>
+          {% empty %}
+            <li>No students found.</li>
+          {% endfor %}
+        </ul>
+      </li>
     </ul>
   </div>
 </body>

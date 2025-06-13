@@ -1,43 +1,50 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Student, Course,Club, Profile, Syllabus
+from .models import Student, Course, Club, Profile, Syllabus
 import datetime
 from .forms import SyllabusForm
+from django.db.models import Q, Avg, Max, Count, Subquery, OuterRef, Case, When, Value, CharField
+
 
 # Create your views here.
 
 def student_list(request):
     students = Student.objects.select_related('course', 'profile', 'course__syllabus').prefetch_related('clubs').all()
 
-    # Filter by course title
+    filters = Q()
+
     course_title = request.GET.get('course')
     if course_title:
-        students = students.filter(course__title__iexact=course_title)
+        filters &= Q(course__title__iexact=course_title)
 
-    # Exclude failed students (mark < 35)
     if request.GET.get('exclude_failed') == 'true':
-        students = students.exclude(mark__lt=35)
+        filters &= ~Q(mark__lt=35)
 
-    # Search by name (case-insensitive)
     search = request.GET.get('search')
     if search:
-        students = students.filter(name__icontains=search)
+        filters &= Q(name__icontains=search)
 
-    # Filter by min_mark and max_mark independently
     min_mark = request.GET.get('min_mark')
     max_mark = request.GET.get('max_mark')
 
     try:
         if min_mark:
-            min_mark_val = int(min_mark)
-            students = students.filter(mark__gte=min_mark_val)  # mark >= min_mark
+            filters &= Q(mark__gte=int(min_mark))
         if max_mark:
-            max_mark_val = int(max_mark)
-            students = students.filter(mark__lte=max_mark_val)  # mark <= max_mark
+            filters &= Q(mark__lte=int(max_mark))
     except ValueError:
-        
         pass
 
-    #summary
+    students = students.filter(filters)
+
+    # Annotate pass/fail status
+    students = students.annotate(
+        status=Case(
+            When(mark__gte=35, then=Value('Pass')),
+            default=Value('Fail'),
+            output_field=CharField()
+        )
+    )
+
     first_student = students.first()
     last_student = students.last()
     student_exists = students.exists()
@@ -48,6 +55,27 @@ def student_list(request):
     ordered_students = students.order_by('-mark')
     top_students = students.order_by('-mark')[:5]
     empty_qs = not student_exists
+
+    average_mark = students.aggregate(avg=Avg('mark'))['avg']
+    max_mark = students.aggregate(max=Max('mark'))['max']
+
+    students_per_course = Course.objects.annotate(student_count=Count('members'))
+
+    latest_student_subquery = Student.objects.filter(course=OuterRef('pk')).order_by('-id')
+    courses_with_latest = Course.objects.annotate(
+        latest_student_name=Subquery(latest_student_subquery.values('name')[:1])
+    )
+
+    # UNION of courses with 'CS' or 'AI' in title
+    cs_courses_qs = Course.objects.filter(title__icontains='Computer Science')
+    ai_courses_qs = Course.objects.filter(title__icontains='Artificial Intelligence')
+    union_courses = cs_courses_qs.union(ai_courses_qs)
+
+
+    # INTERSECTION of students with mark>80 AND course title contains 'Data Science'
+    high_mark_students = Student.objects.filter(mark__gt=80)
+    data_science_students = Student.objects.filter(course__title__icontains='Data Science')
+    intersection_students = high_mark_students.intersection(data_science_students)
 
     return render(request, 'student/student_list.html', {
         'students': students,
@@ -60,9 +88,14 @@ def student_list(request):
         'student_data': student_data,
         'names': names,
         'top_students': top_students,
-        'empty_qs': empty_qs
+        'empty_qs': empty_qs,
+        'average_mark': average_mark,
+        'max_mark': max_mark,
+        'students_per_course': students_per_course,
+        'courses_with_latest': courses_with_latest,
+        'union_courses': union_courses,
+        'intersection_students': intersection_students,
     })
-
 
 
 
@@ -184,4 +217,14 @@ def view_syllabus(request, course_id):
     return render(request, 'student/view_syllabus.html', {
         'course': course,
         'syllabus': syllabus
+    })
+
+def course_union_view(request):
+    cs_courses = Course.objects.filter(title__icontains='Computer Science').values('id', 'title')
+    ai_courses = Course.objects.filter(title__icontains='Artificial Intelligence').values('id', 'title')
+
+    union_courses = cs_courses.union(ai_courses).order_by('title')
+
+    return render(request, 'student/courses_union.html', {
+        'courses': union_courses,
     })
